@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz Science Cambridge - Kelas 4</title>
+<style>
+:root{--pri:#1b6ca8;--pri-d:#0f4c75;--bg:#f4f7fb;--card:#fff;--ok:#2e8b57;--bad:#c0392b;--muted:#667;}
+*{box-sizing:border-box;font-family:'Segoe UI',Arial,sans-serif;}
+body{margin:0;background:var(--bg);color:#222;}
+.wrap{max-width:820px;margin:0 auto;padding:20px;}
+.card{background:var(--card);border-radius:14px;padding:24px;box-shadow:0 2px 10px rgba(0,0,0,.08);margin-bottom:16px;}
+h1{color:var(--pri-d);font-size:1.4em;margin-top:0;}
+h2{color:var(--pri-d);}
+.btn{background:var(--pri);color:#fff;border:none;padding:12px 22px;border-radius:8px;font-size:1em;cursor:pointer;margin:6px 4px 0 0;}
+.btn:hover{background:var(--pri-d);}
+.btn:disabled{background:#aab;cursor:not-allowed;}
+.btn-out{background:#fff;color:var(--pri);border:2px solid var(--pri);}
+input,select{width:100%;padding:10px;border:1px solid #ccd;border-radius:8px;margin:6px 0 14px;font-size:1em;}
+.hidden{display:none;}
+.navgrid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;margin-bottom:16px;}
+.navbtn{padding:8px 0;border-radius:6px;border:1px solid #ccd;background:#fff;cursor:pointer;font-size:.85em;}
+.navbtn.answered{background:#d7ecdd;border-color:var(--ok);}
+.navbtn.current{outline:2px solid var(--pri);}
+.opt{display:block;border:1px solid #ccd;border-radius:8px;padding:12px;margin:8px 0;cursor:pointer;}
+.opt:hover{background:#eef4fb;}
+.opt.selected{background:#dbeafe;border-color:var(--pri);}
+.progress{color:var(--muted);font-size:.9em;margin-bottom:10px;}
+.score-big{font-size:3em;color:var(--pri-d);text-align:center;margin:10px 0;}
+.review-item{border-bottom:1px solid #eee;padding:14px 0;}
+.review-item.wrong{border-left:4px solid var(--bad);padding-left:10px;}
+.review-item.right{border-left:4px solid var(--ok);padding-left:10px;}
+table{width:100%;border-collapse:collapse;}
+th,td{padding:8px;border-bottom:1px solid #eee;text-align:left;}
+.tag{display:inline-block;background:#eef4fb;color:var(--pri-d);border-radius:20px;padding:2px 10px;font-size:.8em;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div id="s-start" class="card">
+<h1>🔬 Quiz Science Cambridge - Kelas 4</h1>
+<p>Skeletons, Muscles &amp; Disease</p>
+<label>Nama Lengkap</label>
+<input id="inName" placeholder="Tulis namamu">
+<label>Kelas</label>
+<input id="inClass" placeholder="Contoh: 4A">
+<button class="btn" onclick="goInstructions()">Lanjut ➜</button>
+</div>
+
+<div id="s-instr" class="card hidden">
+<h2>📋 Petunjuk Mengerjakan</h2>
+<ol>
+<li>Kuis terdiri dari <b>40 soal pilihan ganda</b> dengan satu jawaban benar.</li>
+<li>Waktu tidak dibatasi, kerjakan dengan teliti.</li>
+<li>Gunakan tombol nomor untuk berpindah antar soal.</li>
+<li>Tombol <b>Submit</b> hanya aktif jika semua soal sudah dijawab.</li>
+<li>Jawaban tidak bisa diubah setelah submit.</li>
+<li>Bacalah bismillah sebelum mulai mengerjakan.</li>
+</ol>
+<button class="btn" onclick="startQuiz()">Mulai Kuis 🚀</button>
+</div>
+
+<div id="s-quiz" class="card hidden">
+<div class="progress" id="progress"></div>
+<div class="navgrid" id="navgrid"></div>
+<div id="qbox"></div>
+<button class="btn btn-out" onclick="prevQ()">‹ Sebelumnya</button>
+<button class="btn btn-out" onclick="nextQ()">Selanjutnya ›</button>
+<button class="btn" id="btnSubmit" onclick="submitQuiz()" disabled>Submit Jawaban</button>
+</div>
+
+<div id="s-result" class="card hidden">
+<h2>🎉 Hasil Kuis</h2>
+<p id="resName"></p>
+<div class="score-big" id="resScore"></div>
+<p id="resDetail" style="text-align:center;"></p>
+<div style="text-align:center;">
+<button class="btn" onclick="showReview()">📖 Lihat Pembahasan</button>
+<button class="btn btn-out" onclick="showHighscore()">🏆 Highscore</button>
+</div>
+</div>
+
+<div id="s-review" class="card hidden">
+<h2>📖 Pembahasan</h2>
+<div id="reviewBox"></div>
+<button class="btn btn-out" onclick="showResult()">‹ Kembali ke Hasil</button>
+</div>
+
+<div id="s-highscore" class="card hidden">
+<h2>🏆 Top 10 Highscore</h2>
+<table id="hsTable"><thead><tr><th>#</th><th>Nama</th><th>Kelas</th><th>Nilai</th></tr></thead><tbody></tbody></table>
+<button class="btn btn-out" onclick="showResult()">‹ Kembali ke Hasil</button>
+</div>
+
+</div>
+
+<script>
+// ====== KONFIGURASI GOOGLE SHEETS ======
+// Isi dengan URL Web App Google Apps Script kamu (lihat panduan yang diberikan).
+// Kosongkan ("") jika ingin memakai penyimpanan lokal (localStorage) di browser saja.
+const CONFIG = { SHEET_URL: "https://script.google.com/macros/s/AKfycbxRtFg1VgR4onmMz4GubRiPitQBN7gEdOkvsVsTl1Appyzi8t4YKuvkcYczlFr-pjLP/exec" };
+
+// ====== BANK SOAL (40 soal) ======
+const QUESTIONS = [
+{q:"The hard parts inside our bodies that form a structure are called ....",o:["Muscles","Germs","Bones","Scabs"],a:2,e:"Bones are the hard structures that form our skeleton."},
+{q:"A doctor takes a picture of the inside of a patient's arm after a fall to check for a fracture. What is the main purpose of this technology (X-ray)?",o:["To measure the length of the muscles","To help identify and treat broken bones inside the body","To identify germs causing infection","To check the heart and lungs"],a:1,e:"X-rays let doctors see bones inside the body to find breaks."},
+{q:"Older adults' bones can lose density and become brittle (osteoporosis). Why are they more likely to break bones, and how can this be prevented?",o:["Their bones grow too fast; they should stop moving","Their exoskeletons weaken; they should take vaccines","Their muscles pull too hard; they should avoid stretching","Their bones become weak; movement and proper food help build stronger bones"],a:3,e:"Weak bone density is helped by exercise and calcium-rich food."},
+{q:"The part of the skeleton responsible for protecting the brain is the ....",o:["Rib cage","Spine","Skull","Jaw"],a:2,e:"The skull encases and protects the brain."},
+{q:"Animals that have a backbone are known as ....",o:["Invertebrates","Vertebrates","Insects","Germs"],a:1,e:"Vertebrates are animals with a backbone."},
+{q:"A classification key asks: 'Does it have a backbone?' Yes → Box A. No → 'Does it have a shell?' Yes → Box B, No → Box C. A bird and a snail are classified. Which boxes do they belong to?",o:["Box A = bird, Box B = snail","Box A = snail, Box B = bird","Box A = spider, Box B = snail","Box A = frog, Box B = bird"],a:0,e:"A bird has a backbone (Box A); a snail has no backbone but has a shell (Box B)."},
+{q:"A crab and a snail are both invertebrates. What do they have in common regarding their skeletons?",o:["They both have backbones made of vertebrae","They both have an exoskeleton on the outside of their bodies","Their skeletons grow continuously without shedding","They move using biceps and triceps"],a:1,e:"Both crabs and snails have a hard outer covering (exoskeleton/shell)."},
+{q:"Diseases that can spread from one person to another are called ....",o:["Non-infectious diseases","Genetic diseases","Infectious diseases","Muscular diseases"],a:2,e:"Infectious diseases are caused by germs and can spread between people."},
+{q:"Riyaz has the flu, goes to school, plays closely with friends, and sneezes without covering his mouth. Days later, three friends also get a runny nose and cough. What is the scientific explanation?",o:["The flu is non-infectious, caused by playing too much","Germs from Riyaz's mouth were passed to his friends when he sneezed","His friends did not stretch, causing weak immunity","The flu vaccine did not have clear instructions"],a:1,e:"Sneezing without covering the mouth spreads germs to others."},
+{q:"In a survey of 20 people: 2 took 1 day to recover, 3 took 2 days, 10 took 3 days, 3 took 4 days, 2 took 5 days. What can be concluded?",o:["Most people need exactly one day to recover","Most people take three days to recover from the flu","No one takes more than three days to recover","Exactly five people took five days to recover"],a:1,e:"10 out of 20 people (the largest group) recovered in 3 days."},
+{q:"Farmer Tan's chicken is coughing; within two days half his chickens show symptoms, and Farmer Tan himself gets sick. What is the best explanation?",o:["Medicines spread through the air and caused an outbreak","Bird flu is non-infectious and only affects animals with backbones","An infectious disease can spread between birds and also from animals to humans","The chickens got sick because they lack exoskeletons"],a:2,e:"This describes a zoonotic infectious disease spreading between animals and humans."},
+{q:"Which of the following is an example of an infectious disease found in plants?",o:["Broken stems","Leaf rust","Yellow paint on leaves","Weak roots from lack of water"],a:1,e:"Leaf rust is caused by a fungus and can spread between plants."},
+{q:"When you are sick, the best person to tell you the correct dose of medicine is ....",o:["A classmate","A pharmacist or doctor","A veterinarian","A teacher"],a:1,e:"Pharmacists and doctors are trained to give correct medicine doses."},
+{q:"Edward Jenner found that people who had cowpox did not get smallpox, leading him to create the smallpox vaccine, which eliminated smallpox by 1980. How did this change scientific knowledge?",o:["It proved diseases cannot be stopped once an outbreak starts","It showed vaccines can give humans immunity to prevent infectious diseases","It discovered smallpox only affects cows","It proved non-infectious diseases are spread by germs"],a:1,e:"Jenner's discovery led to vaccination as a way to prevent infectious disease."},
+{q:"The primary difference between medicines and vaccines is ....",o:["Medicines treat illnesses, vaccines protect and prevent diseases","Medicines are for animals, vaccines are for humans","Medicines are taken by injection only","Medicines prevent broken bones, vaccines heal them"],a:0,e:"Medicines treat existing illness; vaccines prevent future infection."},
+{q:"Sarah lifts a dumbbell by bending her arm, then slowly lowers it by straightening her arm. What happens to her biceps and triceps as she straightens (lowers) her arm?",o:["Biceps contract, triceps relax","Biceps relax, triceps contract","Both contract at the same time","Both relax at the same time"],a:1,e:"Lowering the arm relaxes the biceps while the triceps contract to control the movement."},
+{q:"A spider has a hard covering outside its body; a worm has a soft body with no shell or bones. Which statement is correct?",o:["Both animals are vertebrates because they can move","Both are invertebrates; the spider has an exoskeleton while the worm has no skeleton at all","The worm has an internal skeleton like the spider","The spider has a backbone, but the worm does not"],a:1,e:"Neither has a backbone (both invertebrates); the spider's hard covering is an exoskeleton."},
+{q:"Which describes how infectious disease germs commonly spread from one person to another?",o:["By sleeping in the same house but in different rooms","By saliva from sneezing and by touching an infected person or object","By exercising together outdoors","By eating healthy food together"],a:1,e:"Germs spread via droplets (sneezing) and contact with infected people or objects."},
+{q:"Ali has a bad cough, finds his brother's cough syrup, and pours it into a soup spoon without reading the label. What mistakes did Ali make?",o:["He used a soup spoon instead of a proper dosing tool and took his brother's medicine without asking an adult","He should have taken a vaccine instead of medicine","He treated a cough that did not need treatment","He used a proper dosing cup as instructed"],a:0,e:"Using an unmeasured spoon and someone else's medicine without adult guidance is unsafe."},
+{q:"Which pair of animals both have an exoskeleton (a skeleton on the outside of their body)?",o:["Crabs and beetles","Frogs and fish","Crabs and frogs","Beetles and fish"],a:0,e:"Crabs and beetles both have a hard outer exoskeleton; frogs and fish are vertebrates."},
+{q:"The column of bones that supports our body and is made of vertebrae is called the ....",o:["Skull","Spine (backbone)","Rib cage","Jaw"],a:1,e:"The spine (backbone) is a column of vertebrae supporting the body."},
+{q:"A boy has a fever, feels weak, and cannot go to school because his body is not working properly. This condition is known as a(n) ....",o:["Illness/disease","Exercise routine","Vaccination","Digestion process"],a:0,e:"When the body cannot function properly, it is called an illness."},
+{q:"A farmer notices strange orange spots (leaf rust) on his rose leaves, and the leaves look weak. Besides losing leaves or dying, leaf rust can also cause the plant to ....",o:["Grow taller than usual","Produce fewer flowers or fruit","Change color to bright green","Become an invertebrate"],a:1,e:"Infectious plant diseases can reduce a plant's ability to produce flowers or fruit."},
+{q:"When your body is protected against a disease because you received an injection to help your body fight it off in the future, you are said to have ... against it.",o:["Immunity","An infection","A vaccination site","An allergy"],a:0,e:"Immunity is the body's protection against a specific disease."},
+{q:"If an infectious disease spreads rapidly from animals to humans and affects a very large number of people in a short time, it can lead to a(n) ....",o:["Immunity","Epidemic","Pandemic","Antibody response"],a:2,e:"A disease spreading widely among people, especially across regions, is a pandemic."},
+{q:"A poster shows: wear a mask, wash hands often, and maintain physical distancing to stay healthy. How do germs spread and how can these actions help?",o:["Germs spread through the air and by touch; masks and handwashing help prevent the spread","Germs only spread through food, so washing hands does not help","Physical distancing spreads more germs than staying close","Face masks cause infections, so they should be avoided"],a:0,e:"These actions reduce germ transmission through air and contact."},
+{q:"When you bend your arm to lift a dumbbell, what happens to your biceps and triceps (a muscle pair)?",o:["Both muscles contract at the same time","The biceps contract while the triceps relax","The biceps relax while the triceps contract","Both muscles relax at the same time"],a:1,e:"Muscle pairs work opposite each other: biceps contract to bend, triceps relax."},
+{q:"Nanorobots can deliver medicine directly to specific cells, unlike a traditional dosing cup. Why is accurate dosing still important in both cases?",o:["Because too much or too little medicine can be ineffective or harmful, no matter how it is delivered","Because dosing cups are more accurate than nanorobots","Because accurate dosing only matters for vaccines","Because nanorobots do not need to be dosed accurately"],a:0,e:"Correct dosage matters regardless of delivery method to avoid harm or ineffectiveness."},
+{q:"The place where two bones meet, allowing movement, is called a ....",o:["Joint","Tendon","Ligament","Muscle"],a:0,e:"A joint is where two bones meet and allow movement."},
+{q:"The tissue that connects muscle to bone is called a ....",o:["Tendon","Ligament","Cartilage","Joint"],a:0,e:"Tendons attach muscles to bones."},
+{q:"Fish are vertebrates that breathe using ....",o:["Lungs","Gills","Skin only","No breathing organ"],a:1,e:"Fish use gills to extract oxygen from water."},
+{q:"An insect can be identified because it has ....",o:["Six legs and three body parts","Eight legs and two body parts","No legs","A backbone"],a:0,e:"Insects have six legs and three main body parts (head, thorax, abdomen)."},
+{q:"Which of the following is an example of a non-infectious disease?",o:["Flu","Common cold","Diabetes","Chickenpox"],a:2,e:"Diabetes is not caused by germs and cannot spread between people."},
+{q:"A vaccine works by ....",o:["Killing germs already in the body directly","Training the immune system to recognize and fight a specific germ in the future","Replacing damaged bones","Providing nutrients to muscles"],a:1,e:"Vaccines prepare the immune system to fight a germ before infection occurs."},
+{q:"Washing hands with soap for at least 20 seconds mainly helps prevent disease by ....",o:["Removing germs from the skin before they enter the body","Making hands smell nice","Cooling down the body","Strengthening bones"],a:0,e:"Handwashing physically removes germs, reducing infection risk."},
+{q:"A class recorded sport preferences: Football 12, Swimming 8, Badminton 5. Which sport is the most preferred?",o:["Football","Swimming","Badminton","All equal"],a:0,e:"Football has the highest count (12) among the three sports."},
+{q:"When testing which material is strongest for a skeleton model, a fair test means ....",o:["Changing many variables at once","Only changing the material being tested and keeping everything else the same","Using a different method each time","Guessing the result without testing"],a:1,e:"A fair test changes only one variable while keeping others constant."},
+{q:"An animal with a backbone, cold blood, and rough dry scales that lays eggs on land is most likely a ....",o:["Mammal","Bird","Reptile","Amphibian"],a:2,e:"Reptiles are cold-blooded vertebrates with dry scales that lay eggs on land."},
+{q:"Which of the following animals is an amphibian, able to live both in water and on land?",o:["Frog","Cat","Eagle","Shark"],a:0,e:"Frogs are amphibians that live part of their life in water and part on land."}
+];
+
+let state = {name:"",cls:"",answers:new Array(QUESTIONS.length).fill(null),cur:0};
+
+function show(id){document.querySelectorAll('.card').forEach(c=>c.classList.add('hidden'));document.getElementById(id).classList.remove('hidden');}
+
+function goInstructions(){
+  state.name = document.getElementById('inName').value.trim();
+  state.cls = document.getElementById('inClass').value.trim();
+  if(!state.name || !state.cls){alert('Isi nama dan kelas terlebih dahulu!');return;}
+  show('s-instr');
+}
+
+function startQuiz(){ show('s-quiz'); buildNav(); renderQ(); }
+
+function buildNav(){
+  const g = document.getElementById('navgrid'); g.innerHTML='';
+  QUESTIONS.forEach((_,i)=>{
+    const b=document.createElement('button');
+    b.className='navbtn'; b.textContent=i+1;
+    b.onclick=()=>{state.cur=i; renderQ();};
+    g.appendChild(b);
+  });
+}
+
+function renderQ(){
+  const i = state.cur, q = QUESTIONS[i];
+  document.getElementById('progress').textContent = `Soal ${i+1} dari ${QUESTIONS.length} — Terjawab: ${state.answers.filter(a=>a!==null).length}/${QUESTIONS.length}`;
+  let html = `<h3>${i+1}. ${q.q}</h3>`;
+  q.o.forEach((opt,j)=>{
+    html += `<div class="opt ${state.answers[i]===j?'selected':''}" onclick="selectAns(${j})">${String.fromCharCode(65+j)}. ${opt}</div>`;
+  });
+  document.getElementById('qbox').innerHTML = html;
+  document.querySelectorAll('.navbtn').forEach((b,idx)=>{
+    b.classList.toggle('current', idx===i);
+    b.classList.toggle('answered', state.answers[idx]!==null);
+  });
+  document.getElementById('btnSubmit').disabled = !state.answers.every(a=>a!==null);
+}
+
+function selectAns(j){ state.answers[state.cur]=j; renderQ(); }
+function prevQ(){ if(state.cur>0){state.cur--; renderQ();} }
+function nextQ(){ if(state.cur<QUESTIONS.length-1){state.cur++; renderQ();} }
+
+async function submitQuiz(){
+  if(!state.answers.every(a=>a!==null)){alert('Masih ada soal yang belum dijawab!');return;}
+  let correct=0;
+  QUESTIONS.forEach((q,i)=>{ if(state.answers[i]===q.a) correct++; });
+  state.score = correct;
+  state.nilai = Math.round((correct/QUESTIONS.length)*100);
+  await saveScore({name:state.name, cls:state.cls, correct, total:QUESTIONS.length, nilai:state.nilai, time:new Date().toISOString()});
+  showResult();
+}
+
+function showResult(){
+  document.getElementById('resName').textContent = `${state.name} - Kelas ${state.cls}`;
+  document.getElementById('resScore').textContent = state.nilai;
+  document.getElementById('resDetail').textContent = `Benar ${state.score} dari ${QUESTIONS.length} soal`;
+  show('s-result');
+}
+
+function showReview(){
+  let html='';
+  QUESTIONS.forEach((q,i)=>{
+    const ua = state.answers[i], correct = ua===q.a;
+    html += `<div class="review-item ${correct?'right':'wrong'}">
+    <b>${i+1}. ${q.q}</b><br>
+    Jawabanmu: ${ua!==null?String.fromCharCode(65+ua)+'. '+q.o[ua]:'-'} ${correct?'✅':'❌'}<br>
+    ${!correct?`Jawaban benar: ${String.fromCharCode(65+q.a)}. ${q.o[q.a]}<br>`:''}
+    <span class="tag">Pembahasan: ${q.e}</span>
+    </div>`;
+  });
+  document.getElementById('reviewBox').innerHTML = html;
+  show('s-review');
+}
+
+async function showHighscore(){
+  const list = await loadLeaderboard();
+  list.sort((a,b)=>b.nilai-a.nilai);
+  const top = list.slice(0,10);
+  const tbody = document.querySelector('#hsTable tbody');
+  tbody.innerHTML = top.map((r,i)=>`<tr><td>${i+1}</td><td>${r.name}</td><td>${r.cls}</td><td>${r.nilai}</td></tr>`).join('') || '<tr><td colspan="4">Belum ada data</td></tr>';
+  show('s-highscore');
+}
+
+// ====== FUNGSI DATABASE (Google Sheets via Apps Script, fallback localStorage) ======
+async function saveScore(data){
+  if(CONFIG.SHEET_URL){
+    try{ await fetch(CONFIG.SHEET_URL,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(data)}); }catch(e){ console.error('Gagal simpan ke Sheet:',e); }
+  } else {
+    const lb = JSON.parse(localStorage.getItem('quiz_leaderboard')||'[]');
+    lb.push(data);
+    localStorage.setItem('quiz_leaderboard', JSON.stringify(lb));
+  }
+}
+async function loadLeaderboard(){
+  if(CONFIG.SHEET_URL){
+    try{ const r = await fetch(CONFIG.SHEET_URL); return await r.json(); }catch(e){ console.error('Gagal ambil data Sheet:',e); return []; }
+  } else {
+    return JSON.parse(localStorage.getItem('quiz_leaderboard')||'[]');
+  }
+}
+</script>
+</body>
+</html>
